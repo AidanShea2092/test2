@@ -1,0 +1,92 @@
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ticketSheet = ss.getSheetByName("Tickets");
+  var loanerSheet = ss.getSheetByName("Loaners");
+ 
+  var tickets = getData(ticketSheet);
+  var loaners = getData(loanerSheet);
+ 
+  var result = {
+    tickets: tickets,
+    loaners: loaners
+  };
+ 
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var data = JSON.parse(e.postData.contents);
+    var action = data.action;
+   
+    if (action === "addTicket") {
+      var sheet = ss.getSheetByName("Tickets");
+      // Append row: id, date, barcode, name, email, type, category, description, status
+      sheet.appendRow([String(data.id), data.date, String(data.barcode), data.name, data.email, data.type, data.category, data.description, data.status]);
+      return response("Success");
+     
+    } else if (action === "addLoaner") {
+      var sheet = ss.getSheetByName("Loaners");
+      // Append row: barcode, name, dateOut
+      sheet.appendRow([String(data.barcode), data.name, data.dateOut]);
+      return response("Success");
+     
+    } else if (action === "closeTicket") {
+      // Find row by ID and update status
+      var sheet = ss.getSheetByName("Tickets");
+      var values = sheet.getDataRange().getValues();
+      // Loop through rows (skip header)
+      for (var i = 1; i < values.length; i++) {
+        if (String(values[i][0]) === String(data.id)) { // Col 0 is ID
+          sheet.getRange(i + 1, 9).setValue("closed"); // Col 9 is Status
+          break;
+        }
+      }
+      return response("Closed");
+     
+    } else if (action === "returnLoaner") {
+      var sheet = ss.getSheetByName("Loaners");
+      var values = sheet.getDataRange().getValues();
+      for (var i = 1; i < values.length; i++) {
+        if (String(values[i][0]) === String(data.barcode)) { // Col 0 is Barcode
+          sheet.deleteRow(i + 1);
+          break;
+        }
+      }
+      return response("Returned");
+    }
+   
+  } catch (err) {
+    return response("Error: " + err.toString());
+  }
+}
+
+
+// Helper to turn sheet rows into JSON objects
+function getData(sheet) {
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var data = [];
+ 
+  if (rows.length <= 1) return data;
+ 
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j]] = row[j];
+    }
+    data.push(obj);
+  }
+  return data;
+}
+
+
+function response(msg) {
+  return ContentService.createTextOutput(JSON.stringify({result: msg}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
