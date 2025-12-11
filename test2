@@ -266,7 +266,7 @@
     document.addEventListener('DOMContentLoaded', () => {
 
         // ===================================
-        // TODO: PASTE YOUR URL HERE!
+        // PASTE YOUR GOOGLE WEB APP URL HERE
         // ===================================
         const ENDPOINT = "https://script.google.com/macros/s/AKfycbyXKAjy_CHVFWCV9DdfFCo6iuMghqRTYZ9y-1xdyVKzPOhnL53xdEoKda915DfTS5lB/exec"; 
         
@@ -317,10 +317,10 @@
         async function sendData(payload) {
             showStatus("Saving to Google Sheets...");
             try {
+                // FIXED: Removed Headers causing CORS errors
                 await fetch(ENDPOINT, {
                     method: 'POST',
                     mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 showStatus("Saved successfully.");
@@ -382,7 +382,7 @@
             const search = document.getElementById('loaner-search').value.toLowerCase();
             
             allLoaners.forEach(l => {
-                if(l.barcode.toLowerCase().includes(search) || l.name.toLowerCase().includes(search)) {
+                if(String(l.barcode).toLowerCase().includes(search) || l.name.toLowerCase().includes(search)) {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `<td>${l.name}</td><td>${l.barcode}</td><td>${new Date(l.dateOut).toLocaleDateString()}</td>
                     <td><button class="btn-check-in" data-barcode="${l.barcode}">Check In</button></td>`;
@@ -441,8 +441,12 @@
             // UI Update Immediate (Optimistic)
             allTickets.unshift(newTicket);
             renderAllPages();
-            showPage('page-view-tickets');
+            
+            // FIXED: Proper Form Clearing
             ticketForm.reset();
+            document.getElementById('ticket-date').value = new Date().toLocaleDateString();
+            
+            showPage('page-view-tickets');
             
             // Server Sync
             sendData(newTicket);
@@ -452,7 +456,9 @@
         loanerForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const barcode = document.getElementById('loaner-barcode').value;
-            if(allLoaners.some(l => l.barcode === barcode)) {
+            
+            // FIXED: String comparison for validation
+            if(allLoaners.some(l => String(l.barcode) === String(barcode))) {
                 alert("Loaner already checked out!");
                 return;
             }
@@ -487,7 +493,10 @@
             if(e.target.classList.contains('btn-check-in')) {
                 const bc = e.target.dataset.barcode;
                 if(!confirm(`Check in ${bc}?`)) return;
-                allLoaners = allLoaners.filter(l => l.barcode !== bc);
+                
+                // FIXED: String comparison bug (Fixes Check In button)
+                allLoaners = allLoaners.filter(l => String(l.barcode) !== String(bc));
+                
                 renderAllPages();
                 sendData({ action: 'returnLoaner', barcode: bc });
             }
